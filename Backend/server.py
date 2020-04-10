@@ -17,20 +17,21 @@ node_address = str(uuid4()).replace('-', '')
 
 print(node_address)
 
-@app.route('/login', methods=['POST'])
-def login_func():
-    username = request.json['username']
-    passwd = request.json['password']
-    print(username, passwd)
-    return jsonify({'username': username, 'password':passwd}), 200
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    temp = request.get_json()
+    with open('publickeys.json') as f:
+        keys = json.load(f)
+    # print(keys)
+    if temp["name"] in keys:
+        return jsonify({"Message": "username already exists"})
 
-@app.route('/signup', methods=['POST'])
-def signup_func():
-    name = request.json['name']
-    username = request.json['username']
-    passwd = request.json['password']
-    print(name, passwd)
-    return jsonify({'name': name, 'username':username, 'password':passwd}), 200
+    keys[temp["name"]] = {"A": temp['A'], "B": temp['B'], "p":temp['p']}
+
+    with open('publickeys.json','w') as f:
+        json.dump(keys, f)
+
+    return jsonify("User added to keystore"), 200
 
 # Mining a new block
 @app.route('/mine_block', methods = ['GET'])
@@ -40,7 +41,7 @@ def mine_block():
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
     blockchain.add_data(sender = node_address, msg = "Hello World")
-    block = blockchain.create_block(proof, previous_hash)
+    block = blockchain.createBlock(proof, previous_hash)
     response = {'message': 'Congratulations, you just mined a block!',
                 'index': block['index'],
                 'timestamp': block['timestamp'],
@@ -70,12 +71,17 @@ def is_valid():
 @app.route('/add_data', methods = ['POST'])
 def add_data():
     json = request.get_json()
-    data_keys = ['sender','msg']
-    if not all(key in json for key in data_keys):
-        return 'Some elements of the data are missing', 400
-    index = blockchain.add_data(json['sender'], json['amount'])
-    response = {'message': f'This data will be added to Block {index}'}
-    return jsonify(response), 201
+    if 's' in json:
+        index = blockchain.add_data(param=json['s'], param_type='s')
+        response = {'message': f'This data will be added to Block {index}'}
+    else:
+        data_keys = ['sender','msg', 'h']
+        if not all(key in json for key in data_keys):
+            return 'Some elements of the data are missing', 400
+        b = blockchain.add_data(json['sender'], json['msg'], json['h'], 'h')
+        response = {"b": b}
+
+    return jsonify(response), 200
 
 # Part 3 - Decentralizing our Blockchain
 

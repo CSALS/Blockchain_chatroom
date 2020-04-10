@@ -3,17 +3,21 @@ import hashlib
 import json
 from urllib.parse import urlparse
 import requests
-
+import random
 
 class Blockchain:
 
     def __init__(self):
         self.chain = []
         self.data = ""
-        self.create_block(proof = 1, previous_hash = '0')
+        self.createBlock(proof = 1, previous_hash = '0')
         self.nodes = set()
+        self.storage = {'sender':'',
+                        'msg':'',
+                        'h':'',
+                        's':''}
     
-    def create_block(self, proof, previous_hash):
+    def createBlock(self, proof, previous_hash):
         block = {'index': len(self.chain) + 1,
                  'timestamp': str(datetime.datetime.now()),
                  'proof': proof,
@@ -57,12 +61,22 @@ class Blockchain:
             block_index += 1
         return True
     
-    def add_data(self, sender, msg):
-        self.data.append({'sender': sender,
-                            'time': str(datetime.datetime.now()),
-                            'msg': msg})
-        previous_block = self.get_previous_block()
-        return previous_block['index'] + 1
+    def add_data(self, sender='', msg='', param='', param_type=''):
+        if param_type=='h':
+            self.storage['sender'] = sender
+            self.storage['msg'] = msg
+            self.storage['h'] = param
+            self.storage['b'] = random.randint(0, 1)
+            return self.storage['b']
+        elif param_type=='s':
+            self.storage['s'] = param
+            if self.verifyTransaction(**self.get_publickeys(self.storage['sender'])):
+                self.data.append({'sender': sender,
+                                    'time': str(datetime.datetime.now()),
+                                    'msg': msg})
+                previous_block = self.get_previous_block()
+                return previous_block['index'] + 1
+        return -1
     
     def add_node(self, address):
         parsed_url = urlparse(address)
@@ -84,3 +98,21 @@ class Blockchain:
             self.chain = longest_chain
             return True
         return False
+
+    def get_publickeys(self, user):
+        with open('publickeys.json') as f:
+            keys = json.load(f)
+        return keys[user]
+
+    def verifyTransaction(self, A, B, p):
+        s = self.storage['s']
+        h = self.storage['h']
+        b = self.storage['b']
+
+        if (A**s)%p == (h*B**b)%p:
+            return True
+        else:
+            return False
+
+    def viewUser(self):
+        pass
