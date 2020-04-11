@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="../static/login.css">
+    <title>ChatRoom</title>
+</head>
+<body>
+    <div class="login">
+        <h1>Login</h1>
+        <form action="" method="post">
+            <input type="text" name="username" placeholder="Username" required="required" value="{{ request.form.username }}"/>
+            <input type="password" name="password" placeholder="Password" required="required" value="{{ request.form.password }}"/>
+            <input class="btn btn-primary btn-block btn-large" type="submit" value="Let Me In!">
+        </form>
+        {% if error %}
+        <center><p class="error" style="color:red"><strong>Error:</strong> {{ error }}</center>
+        {% endif %}
+    </div>
+</body>
+</html>
