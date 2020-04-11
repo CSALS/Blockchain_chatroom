@@ -19,30 +19,76 @@ node_address = str(uuid4()).replace('-', '')
 print(node_address)
 
 # Webpages Begin
+
+BASE_URL = "http://localhost:5000"
+
+logged_in = 0 # Used to prevent anyone not logged in from accessing chatroom page
 @app.route('/', methods=['GET', 'POST'])
 def home():
+    global logged_in
     error = None
     if request.method == 'POST':
         correct = verify_login(request.form['username'], request.form['password'])
         if not correct:
             error = 'Invalid Credentials'
         else:
-            return redirect(url_for('chatroom'))
+            logged_in = logged_in + 1
+            # TODO: Compute A,B,p
+            A = 1
+            B = 2
+            p = 3
+            api_url = BASE_URL + "/add_user"
+            payload = "{\n\t\"A\": 1,\n\t\"B\": 2,\n\t\"p\": 3,\n\t\"name\": \"charan\"\n}"
+            headers = {
+            'Content-Type': 'application/json'
+            }
+            response = requests.request("POST", api_url, headers=headers, data = payload)
+
+            return redirect(url_for('chatroom', username=request.form['username']))
     return render_template('login.html', error=error)
 
-@app.route('/chatroom', methods=['GET', 'POST'])
-def chatroom():
-    if request.method == 'GET':
-        return render_template('chatroom.html')
+@app.route('/chatroom/<username>', methods=['GET', 'POST'])
+def chatroom(username):
+    global logged_in
+    if request.method == 'GET': 
+        # and logged_in != 0: TODO: add this in before line
+        return render_template('chatroom.html', username=username)
+    else:
+        return redirect('/')
+
+# make logout also and whenever log out decrement logged_in
 
 # Webpages End
+
+# Helper Functions for ChatRoom Start
+
+# Function to return all messages in blockchain and also in data
+@app.route('/all_msgs', methods=['GET'])
+def get_all_messages():
+    chain = blockchain.chain
+    resp = []
+    # Add all messages from the blockchain.chain
+    for i, json in enumerate(chain):
+        # Skip first (genesis) block
+        if i == 0:
+            continue
+        data = json['data']
+        # Each data is a list containing messages
+        for i, message in enumerate(data):
+            resp.append(message)
+    # Add all messages present in blockchain.data
+    response = {
+        "response": resp
+    }
+    return jsonify(response), 200
+
+# Helper Functions for ChatRoom End
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
     temp = request.get_json()
     with open('publickeys.json') as f:
         keys = json.load(f)
-    # print(keys)
     if temp["name"] in keys:
         return jsonify({"Message": "username already exists"})
 
@@ -131,4 +177,4 @@ def replace_chain():
     return jsonify(response), 200
 
 # Running the app
-app.run(host = 'localhost', port = 5000)
+app.run(host = '0.0.0.0', port = 5000)
