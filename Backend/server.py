@@ -1,12 +1,13 @@
 import datetime
 import hashlib
 import json
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
 import requests
 from uuid import uuid4
 from flask_cors import CORS
 from urllib.parse import urlparse
 from blockchain import Blockchain
+from login import verify_login
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -16,6 +17,25 @@ blockchain = Blockchain()
 node_address = str(uuid4()).replace('-', '')
 
 print(node_address)
+
+# Webpages Begin
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    error = None
+    if request.method == 'POST':
+        correct = verify_login(request.form['username'], request.form['password'])
+        if not correct:
+            error = 'Invalid Credentials'
+        else:
+            return redirect(url_for('chatroom'))
+    return render_template('login.html', error=error)
+
+@app.route('/chatroom', methods=['GET', 'POST'])
+def chatroom():
+    if request.method == 'GET':
+        return render_template('chatroom.html')
+
+# Webpages End
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -111,4 +131,4 @@ def replace_chain():
     return jsonify(response), 200
 
 # Running the app
-app.run(host = '0.0.0.0', port = 5000)
+app.run(host = 'localhost', port = 5000)
