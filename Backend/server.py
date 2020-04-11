@@ -103,24 +103,44 @@ def add_user():
 @app.route('/mine_block', methods = ['GET'])
 def mine_block():
     previous_block = blockchain.get_previous_block()
-    previous_proof = previous_block['proof']
-    proof = blockchain.proof_of_work(previous_proof)
+    previous_nonce = previous_block['nonce']
+    nonce = blockchain.proof_of_work(previous_nonce)
     previous_hash = blockchain.hash(previous_block)
-    blockchain.add_data(sender = node_address, msg = "Hello World")
-    block = blockchain.createBlock(proof, previous_hash)
-    response = {'message': 'Congratulations, you just mined a block!',
-                'index': block['index'],
-                'timestamp': block['timestamp'],
-                'proof': block['proof'],
-                'previous_hash': block['previous_hash'],
-                'data': block['data']}
+    print("data queue: ", blockchain.data)
+    tmp = blockchain.add_data(sender = node_address, msg = "mining_block")
+
+    if tmp == -1:
+        response = {"message": "There are no messages to mine a new block!"}
+    else:
+        block = blockchain.createBlock(nonce, previous_hash)
+        response = {'message': 'Congratulations, you just mined a block!',
+                    'index': block['index'],
+                    'timestamp': block['timestamp'],
+                    'nonce': block['nonce'],
+                    'previous_hash': block['previous_hash'],
+                    'data': block['data']}
     return jsonify(response), 200
 
 # Getting the full Blockchain
 @app.route('/get_chain', methods = ['GET'])
 def get_chain():
     response = {'chain': blockchain.chain,
-                'length': len(blockchain.chain)}
+                'length': len(blockchain.chain),
+                'unmined_msgs': blockchain.data}
+    return jsonify(response), 200
+
+
+@app.route('/view_user', methods = ['GET'])
+def viewUser():
+    username = request.args["name"]
+    response = {'messages':[]}
+    for block in blockchain.chain:
+        if len(block['data'])>0:
+            for d in block['data']:
+                if d['sender'] == username:
+                    response['messages'].append(d)
+
+
     return jsonify(response), 200
 
 # Checking if the Blockchain is valid
@@ -175,6 +195,8 @@ def replace_chain():
         response = {'message': 'All good. The chain is the largest one.',
                     'actual_chain': blockchain.chain}
     return jsonify(response), 200
+
+
 
 # Running the app
 app.run(host = '0.0.0.0', port = 5000)

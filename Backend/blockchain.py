@@ -10,17 +10,17 @@ class Blockchain:
     def __init__(self):
         self.chain = []
         self.data = ""
-        self.createBlock(proof = 1, previous_hash = '0')
+        self.createBlock(nonce = 1, previous_hash = '0')
         self.nodes = set()
         self.storage = {'sender':'',
                         'msg':'',
                         'h':'',
                         's':''}
     
-    def createBlock(self, proof, previous_hash):
+    def createBlock(self, nonce, previous_hash):
         block = {'index': len(self.chain) + 1,
                  'timestamp': str(datetime.datetime.now()),
-                 'proof': proof,
+                 'nonce': nonce,
                  'previous_hash': previous_hash,
                  'data': self.data}
         self.data = []
@@ -30,16 +30,16 @@ class Blockchain:
     def get_previous_block(self):
         return self.chain[-1]
 
-    def proof_of_work(self, previous_proof):
-        new_proof = 1
-        check_proof = False
-        while check_proof is False:
-            hash_operation = hashlib.sha256(str(new_proof**2 - previous_proof**2).encode()).hexdigest()
+    def proof_of_work(self, previous_nonce):
+        new_nonce = 1
+        check_nonce = False
+        while check_nonce is False:
+            hash_operation = hashlib.sha256(str(new_nonce**2 - previous_nonce**2).encode()).hexdigest()
             if hash_operation[:4] == '0000':
-                check_proof = True
+                check_nonce = True
             else:
-                new_proof += 1
-        return new_proof
+                new_nonce += 1
+        return new_nonce
     
     def hash(self, block):
         encoded_block = json.dumps(block, sort_keys = True).encode()
@@ -52,9 +52,9 @@ class Blockchain:
             block = chain[block_index]
             if block['previous_hash'] != self.hash(previous_block):
                 return False
-            previous_proof = previous_block['proof']
-            proof = block['proof']
-            hash_operation = hashlib.sha256(str(proof**2 - previous_proof**2).encode()).hexdigest()
+            previous_nonce = previous_block['nonce']
+            nonce = block['nonce']
+            hash_operation = hashlib.sha256(str(nonce**2 - previous_nonce**2).encode()).hexdigest()
             if hash_operation[:4] != '0000':
                 return False
             previous_block = block
@@ -62,6 +62,9 @@ class Blockchain:
         return True
     
     def add_data(self, sender='', msg='', param='', param_type=''):
+        if msg=='mining_block':
+            if len(self.data)==0: return -1
+            else: return -2
         if param_type=='h':
             self.storage['sender'] = sender
             self.storage['msg'] = msg
@@ -70,13 +73,15 @@ class Blockchain:
             return self.storage['b']
         elif param_type=='s':
             self.storage['s'] = param
-            if self.verifyTransaction(**self.get_publickeys(self.storage['sender'])):
-                self.data.append({'sender': sender,
+            keys = self.get_publickeys(self.storage['sender'])
+            if self.verifyTransaction(keys["A"], keys["B"], keys["p"]):
+                self.data.append({'sender': self.storage['sender'],
                                     'time': str(datetime.datetime.now()),
-                                    'msg': msg})
+                                    # 'time': self.storage['time'],
+                                    'msg': self.storage['msg']})
                 previous_block = self.get_previous_block()
                 return previous_block['index'] + 1
-        return -1
+        return -99
     
     def add_node(self, address):
         parsed_url = urlparse(address)
@@ -113,6 +118,3 @@ class Blockchain:
             return True
         else:
             return False
-
-    def viewUser(self):
-        pass
