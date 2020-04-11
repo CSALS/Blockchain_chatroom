@@ -128,7 +128,7 @@ $(document).ready(function() {
     updateChatBox();
 });
 
-// setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
+setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
 
 // -------------------------------------------------------
 
@@ -146,7 +146,7 @@ function mineBlock() {
     });
 }
 
-// setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
+setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
 
 // Helper function to logout an user
 

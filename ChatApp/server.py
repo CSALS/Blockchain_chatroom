@@ -101,6 +101,9 @@ def mine_block():
                     'nonce': block['nonce'],
                     'previous_hash': block['previous_hash'],
                     'data': block['data']}
+
+        with open('database', 'wb') as file:
+            pickle.dump(Blockchain.chain, file)
     return jsonify(response), 200
 
 # Getting the full Blockchain
