@@ -16,9 +16,11 @@ class Blockchain:
                         'msg':'',
                         'h':'',
                         's':''}
+
         with open("nodes.json") as f:
             for node in json.load(f)['nodes']:
                 self.add_node(node)
+        print("connected nodes: ", self.nodes)
     
     def createBlock(self, nonce, previous_hash):
         block = {'index': len(self.chain) + 1,
@@ -113,14 +115,16 @@ class Blockchain:
     def get_publickeys(self, user):
         with open('publickeys.json') as f:
             keys = json.load(f)
-        return keys[user]
+        return keys.get(user)
 
     def verifyTransaction(self, A, B, p):
         s = self.storage['s']
         h = self.storage['h']
         b = self.storage['b']
 
-        if (A**s)%p == (h*B**b)%p:
+        tmp1 = (A**s)%p
+        tmp2 = (h*(B**b))%p
+        if tmp1 == tmp2:
             return True
         else:
             return False

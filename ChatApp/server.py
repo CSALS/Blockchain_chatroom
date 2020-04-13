@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from blockchain import Blockchain
 from login import verify_login
 from keygen import *
-import os
+import sys
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -21,32 +21,82 @@ node_address = str(uuid4()).replace('-', '')
 print(node_address)
 
 # Webpages Begin
-# port = 5000
-port = os.path.basename(os.getcwd())[-4: ]
+port = 5000
+if len(sys.argv)>1:
+    port = int(sys.argv[1])
 BASE_URL = f"http://localhost:{port}"
 
 logged_in = 0 # Used to prevent anyone not logged in from accessing chatroom page
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    global logged_in
-    share_keys()
     error = None
-    if request.method == 'POST':
-        # correct = verify_login(request.form['username'], request.form['password'])
-        correct = True
-        if not correct:
-            error = 'Invalid Credentials'
-        else:
-            logged_in = logged_in + 1
-            api_url = BASE_URL + "/add_user"
-            payload = json.dumps({"username": request.form['username'], "password": request.form["password"]})
-            headers = {
-                'Content-Type': 'application/json'
-            }
-            response = requests.request("POST", api_url, headers=headers, data = payload)
+    global logged_in
 
-            return redirect(url_for('chatroom', username=request.form['username']))
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form["password"]
+        
+        api_url = BASE_URL + "/add_user"
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        payload = json.dumps({"username": username})
+        response = requests.request("POST", api_url, headers=headers, data = payload)
+        keys = response.json()["keys"]
+
+        A = keys["A"]
+        B = keys["B"]
+        p = keys["p"]
+        
+        hex_val = hashlib.sha1(password.encode()).hexdigest()[:8]
+        x = int("0x" + hex_val, 0)
+        r = random.randint(1, 100)
+        h = modexp_lr_k_ary(A, r, p)
+
+        api_url = BASE_URL + "/verify_user"
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        payload = json.dumps({"username": username, "h": h})
+        response = requests.request("POST", api_url, headers=headers, data = payload)
+        b = response.json()["b"]
+
+        s = modexp_lr_k_ary(r+b*x, 1, p-1)
+        payload = json.dumps({"username": username, "s": s})
+        response = requests.request("POST", api_url, headers=headers, data = payload)
+        msg = response.json()["message"]
+        if msg=="verified successfully":
+            logged_in += 1
+            return redirect(url_for('chatroom', username=username))
+        else:
+            return render_template('login.html', error="Verification failed!")
+
     return render_template('login.html', error=error)
+
+# Verifying user at login
+@app.route('/verify_user', methods = ['POST'])
+def verify_user():
+    if request.method=='POST':
+        json = request.get_json()
+        if 's' in json:
+            global logged_in
+            blockchain.storage['s'] = json['s']
+            keys = blockchain.get_publickeys(json['username'])
+            if blockchain.verifyTransaction(keys["A"], keys["B"], keys["p"]):
+                return jsonify({"message": "verified successfully"})
+            else:
+                return jsonify({"message": "verified failed"})
+
+        else:
+            data_keys = ['username', 'h']
+            if not all(key in json for key in data_keys):
+                return 'Some elements of the data are missing', 400
+            b = random.randint(0, 1)
+            blockchain.storage['h'] = json['h']
+            blockchain.storage['b'] = b
+            response = {"b": b}
+            return jsonify(response), 200
+
 
 @app.route('/chatroom/<username>', methods=['GET', 'POST'])
 def chatroom(username):
@@ -69,13 +119,13 @@ def logout():
 
 def share_keys():
     for node in blockchain.nodes:
-        api_url = f'http://{node}/update_publickeys'
         keys = {}
         with open('publickeys.json') as f:
             try:
                 keys = json.load(f)  
             except:
                 pass
+        api_url = f'http://{node}/update_publickeys'
         payload = json.dumps({"publickeys": keys})
         headers = {
             'Content-Type': 'application/json'
@@ -89,9 +139,9 @@ def share_keys():
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
-    share_keys()
-
+    # share_keys()
     json_req = request.get_json()
+    username = json_req["username"]
     keys = {}
     with open('publickeys.json') as f:
         try:
@@ -99,16 +149,16 @@ def add_user():
         except:
             pass
 
-    if json_req["username"] in keys:
-        return jsonify({"Message": "username already exists", "keys": json_req["username"]}), 200
+    if username in keys:
+        return jsonify({"Message": "username already exists", "keys": keys[username]}), 200
 
     k = keygen(json_req["password"])
-    keys[json_req["username"]] = {"A": k['A'], "B": k['B'], "p":k['p']}
+    keys[username] = {"A": k['A'], "B": k['B'], "p":k['p']}
 
     with open('publickeys.json','w') as f:
         json.dump(keys, f)
 
-    return jsonify({"Message": "New User added to keystore"}), 200
+    return jsonify({"Message": "New User added to keystore", "keys": keys[username]}), 200
 
 # Mining a new block
 @app.route('/mine_block', methods = ['GET'])
@@ -183,6 +233,7 @@ def add_data():
 
     return jsonify(response), 200
 
+
 # Part 3 - Decentralizing our Blockchain
 
 # Connecting new nodes
@@ -201,6 +252,7 @@ def connect_node():
 # Replacing the chain by the longest chain if needed
 @app.route('/replace_chain', methods = ['GET'])
 def replace_chain():
+    # share_keys()
     is_chain_replaced = blockchain.replace_chain()
     if is_chain_replaced:
         response = {'message': 'The nodes had different chains so the chain was replaced by the longest one.',

@@ -14,7 +14,6 @@ const ROOT_URL = "http://" + window.location.host
 const TIME_UPDATECHAT = 1000 //1sec
 const TIME_MINEBLOCK = 5000 //5sec
 const TIME_UPDATECHAIN = 500
-const TIME_UPDATEKEYS = 1000
 
 var messages = []
 var USERNAME = null
@@ -22,7 +21,8 @@ var USERNAME = null
 // -----------------------------------------------
 
 // Function to submit message
-submit_btn.addEventListener("click", event => {
+// submit_btn.addEventListener("click", event => {
+msgerForm.addEventListener("submit", event => {
     event.preventDefault();
 
     const msgText = msgerInput.value;
@@ -53,8 +53,7 @@ submit_btn.addEventListener("click", event => {
         A = response["keys"]["A"];
         B = response["keys"]["B"];
         p = response["keys"]["p"];
-        // console.log("printing json keys " + A, B, p);
-        // console.log('' + r  + " " + powerMod(A, r, p))
+        console.log("printing json keys " + A, B, p);
         let h = powerMod(A, r, p)
         send_add_data(h, r, x, p, msgText)
     });
