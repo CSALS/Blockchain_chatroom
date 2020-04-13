@@ -17,6 +17,7 @@
     </div>
     <div>
         <!-- TODO: if logout button pressed then call API to logout which redirects url to home -->
+        <input type="text" id="key-box" value="" />
         <button type="button" id="logout" value="{{username}}" onclick="logout()">Let Me Out</button>
     </div>
   </header>
@@ -43,7 +44,7 @@
 
   <form class="msger-inputarea">
     <input id="send_msg_field" type="text" class="msger-input" placeholder="Enter your message...">
-    <button type="submit" class="msger-send-btn">Send</button>
+    <button type="button" id="submit-btn" class="msger-send-btn">Send</button>
   </form>
 </section>
 </body>

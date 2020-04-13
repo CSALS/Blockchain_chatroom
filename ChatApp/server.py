@@ -8,6 +8,8 @@ from flask_cors import CORS
 from urllib.parse import urlparse
 from blockchain import Blockchain
 from login import verify_login
+from keygen import *
+import os
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -19,26 +21,25 @@ node_address = str(uuid4()).replace('-', '')
 print(node_address)
 
 # Webpages Begin
-
-BASE_URL = "http://localhost:5000"
+# port = 5000
+port = os.path.basename(os.getcwd())[-4: ]
+BASE_URL = f"http://localhost:{port}"
 
 logged_in = 0 # Used to prevent anyone not logged in from accessing chatroom page
 @app.route('/', methods=['GET', 'POST'])
 def home():
     global logged_in
+    share_keys()
     error = None
     if request.method == 'POST':
-        correct = verify_login(request.form['username'], request.form['password'])
+        # correct = verify_login(request.form['username'], request.form['password'])
+        correct = True
         if not correct:
             error = 'Invalid Credentials'
         else:
             logged_in = logged_in + 1
-            # TODO: Compute A,B,p
-            A = 0
-            B = 2
-            p = 3
             api_url = BASE_URL + "/add_user"
-            payload = f"{{\n\t\"A\": {A},\n\t\"B\": {B},\n\t\"p\": {p},\n\t\"name\": \"{request.form['username']}\" \n}}"
+            payload = json.dumps({"username": request.form['username'], "password": request.form["password"]})
             headers = {
                 'Content-Type': 'application/json'
             }
@@ -66,20 +67,48 @@ def logout():
     return render_template('login.html', error=None)
 # Webpages End
 
+def share_keys():
+    for node in blockchain.nodes:
+        api_url = f'http://{node}/update_publickeys'
+        keys = {}
+        with open('publickeys.json') as f:
+            try:
+                keys = json.load(f)  
+            except:
+                pass
+        payload = json.dumps({"publickeys": keys})
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        try:
+            response = requests.request("POST", api_url, headers=headers, data = payload)
+            with open('publickeys.json','w') as f:
+                json.dump(response.json()["keys"], f)
+        except:
+            pass
+
 @app.route('/add_user', methods=['POST'])
 def add_user():
-    temp = request.get_json()
-    with open('publickeys.json') as f:
-        keys = json.load(f)
-    if temp["name"] in keys:
-        return jsonify({"Message": "username already exists"})
+    share_keys()
 
-    keys[temp["name"]] = {"A": temp['A'], "B": temp['B'], "p":temp['p']}
+    json_req = request.get_json()
+    keys = {}
+    with open('publickeys.json') as f:
+        try:
+            keys = json.load(f)  
+        except:
+            pass
+
+    if json_req["username"] in keys:
+        return jsonify({"Message": "username already exists", "keys": json_req["username"]}), 200
+
+    k = keygen(json_req["password"])
+    keys[json_req["username"]] = {"A": k['A'], "B": k['B'], "p":k['p']}
 
     with open('publickeys.json','w') as f:
         json.dump(keys, f)
 
-    return jsonify("User added to keystore"), 200
+    return jsonify({"Message": "New User added to keystore"}), 200
 
 # Mining a new block
 @app.route('/mine_block', methods = ['GET'])
@@ -103,7 +132,7 @@ def mine_block():
                     'data': block['data']}
 
         with open('database', 'wb') as file:
-            pickle.dump(Blockchain.chain, file)
+            pickle.dump(blockchain.chain, file)
     return jsonify(response), 200
 
 # Getting the full Blockchain
@@ -181,7 +210,44 @@ def replace_chain():
                     'actual_chain': blockchain.chain}
     return jsonify(response), 200
 
+@app.route('/get_publickeys', methods = ['POST'])
+def get_public_keys():
+    json_req = request.get_json()
+    print(json_req, " in get_public_keys")
+    username = json_req["username"]
+    keys = {}
+    with open('publickeys.json') as f:
+        try:
+            keys = json.load(f)  
+        except:
+            pass
+    if username in keys:
+        print("found keys for ",username, " ", keys[username])
+        return jsonify({"keys": keys[username]}), 200
+    
+    return jsonify({"keys":""}), 200
+
+@app.route('/update_publickeys', methods = ['POST'])
+def update_publickeys():
+    json_req = request.get_json()
+    new_keys = json_req["publickeys"]
+    keys = {}
+    with open('publickeys.json') as f:
+        try:
+            keys = json.load(f)  
+        except:
+            pass
+
+    for k in list(new_keys.keys()):
+        if k not in keys:
+            keys[k] = new_keys[k]
+    
+    with open('publickeys.json','w') as f:
+        json.dump(keys, f)
+
+    return jsonify({"keys":keys}), 200
+
 
 
 # Running the app
-app.run(host = '0.0.0.0', port = 5000)
+app.run(host = '0.0.0.0', port = port)
