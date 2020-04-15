@@ -40,7 +40,7 @@ def home():
         headers = {
             'Content-Type': 'application/json'
         }
-        payload = json.dumps({"username": username})
+        payload = json.dumps({"username": username, "password":password})
         response = requests.request("POST", api_url, headers=headers, data = payload)
         keys = response.json()["keys"]
 
