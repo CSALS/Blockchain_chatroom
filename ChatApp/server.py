@@ -3,7 +3,6 @@ import hashlib
 import json
 from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
 import requests
-from uuid import uuid4
 from flask_cors import CORS
 from urllib.parse import urlparse
 from blockchain import Blockchain
@@ -16,10 +15,6 @@ cors = CORS(app)
 
 blockchain = Blockchain()
 
-node_address = str(uuid4()).replace('-', '')
-
-print(node_address)
-
 # Webpages Begin
 port = 5000
 if len(sys.argv)>1:
@@ -29,6 +24,10 @@ BASE_URL = f"http://localhost:{port}"
 logged_in = 0 # Used to prevent anyone not logged in from accessing chatroom page
 @app.route('/', methods=['GET', 'POST'])
 def home():
+    '''
+        This is the root endpoint. Post method to '/' takes care of user 
+        verification. If not verified, the user is redirected to login page.
+    '''
     error = None
     global logged_in
 
@@ -76,6 +75,10 @@ def home():
 # Verifying user at login
 @app.route('/verify_user', methods = ['POST'])
 def verify_user():
+    '''
+    The function for this endpoint is used during login to verify
+    the user's identity.
+    '''
     if request.method=='POST':
         json = request.get_json()
         if 's' in json:
@@ -100,6 +103,10 @@ def verify_user():
 
 @app.route('/chatroom/<username>', methods=['GET', 'POST'])
 def chatroom(username):
+    '''
+    The function for this endpoint displays the chatroom when a verified
+    user is logged in.
+    '''
     global logged_in
     if request.method == 'GET' and logged_in != 0:
         return render_template('chatroom.html', username=username)
@@ -109,6 +116,9 @@ def chatroom(username):
 
 @app.route('/logout', methods=['GET'])
 def logout():
+    '''
+    This function logs out a user from the chatroom.
+    '''
     print("logging out")
     global logged_in
     print(logged_in)
@@ -117,28 +127,33 @@ def logout():
     return render_template('login.html', error=None)
 # Webpages End
 
-def share_keys():
-    for node in blockchain.nodes:
-        keys = {}
-        with open('publickeys.json') as f:
-            try:
-                keys = json.load(f)  
-            except:
-                pass
-        api_url = f'http://{node}/update_publickeys'
-        payload = json.dumps({"publickeys": keys})
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        try:
-            response = requests.request("POST", api_url, headers=headers, data = payload)
-            with open('publickeys.json','w') as f:
-                json.dump(response.json()["keys"], f)
-        except:
-            pass
+# def share_keys():
+#     for node in blockchain.nodes:
+#         keys = {}
+#         with open('publickeys.json') as f:
+#             try:
+#                 keys = json.load(f)  
+#             except:
+#                 pass
+#         api_url = f'http://{node}/update_publickeys'
+#         payload = json.dumps({"publickeys": keys})
+#         headers = {
+#             'Content-Type': 'application/json'
+#         }
+#         try:
+#             response = requests.request("POST", api_url, headers=headers, data = payload)
+#             with open('publickeys.json','w') as f:
+#                 json.dump(response.json()["keys"], f)
+#         except:
+#             pass
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
+    '''
+    This function checks if a username name already exists, 
+    if not creates a new public key, private key pair using 
+    keygen.py and stores the public key in public_keys.json
+    '''
     # share_keys()
     json_req = request.get_json()
     username = json_req["username"]
@@ -163,12 +178,17 @@ def add_user():
 # Mining a new block
 @app.route('/mine_block', methods = ['GET'])
 def mine_block():
+    '''
+    The function (mineBlock()) for this endpoint invokes the add_data method
+    of blockchain class to create a new block at the end of the blockchain using transactions 
+    (msgs) present in the blockchain.data variable.
+    '''
     previous_block = blockchain.get_previous_block()
     previous_nonce = previous_block['nonce']
     nonce = blockchain.proof_of_work(previous_nonce)
     previous_hash = blockchain.hash(previous_block)
     print("data queue: ", blockchain.data)
-    tmp = blockchain.add_data(sender = node_address, msg = "mining_block")
+    tmp = blockchain.add_data(sender = BASE_URL, msg = "mining_block")
 
     if tmp == -1:
         response = {"message": "There are no messages to mine a new block!"}
@@ -188,6 +208,9 @@ def mine_block():
 # Getting the full Blockchain
 @app.route('/get_chain', methods = ['GET'])
 def get_chain():
+    '''
+    It returns the whole blockchain in json format.
+    '''
     response = {'chain': blockchain.chain,
                 'length': len(blockchain.chain),
                 'unmined_msgs': blockchain.data}
@@ -196,6 +219,10 @@ def get_chain():
 
 @app.route('/view_user', methods = ['GET'])
 def viewUser():
+    '''
+    This endpoint returns all the messages of a particular
+    user in the blockchain.
+    '''
     username = request.args["name"]
     response = {'messages':[]}
     for block in blockchain.chain:
@@ -204,12 +231,15 @@ def viewUser():
                 if d['sender'] == username:
                     response['messages'].append(d)
 
-
     return jsonify(response), 200
 
 # Checking if the Blockchain is valid
 @app.route('/is_valid', methods = ['GET'])
 def is_valid():
+    '''
+    It checks if the blockchain is valid using is_chain_valid method of 
+    blockchain class.
+    '''
     is_valid = blockchain.is_chain_valid(blockchain.chain)
     if is_valid:
         response = {'message': 'All good. The Blockchain is valid.'}
@@ -220,6 +250,10 @@ def is_valid():
 # Adding new data to the Blockchain
 @app.route('/add_data', methods = ['POST'])
 def add_data():
+    '''
+    The function for this endpoint is the prover in the transaction verification process. If successful in the verification, the new message
+    is added to the msg queue of blockchain.
+    '''
     json = request.get_json()
     if 's' in json:
         index = blockchain.add_data(param=json['s'], param_type='s')
@@ -239,6 +273,10 @@ def add_data():
 # Connecting new nodes
 @app.route('/connect_node', methods = ['POST'])
 def connect_node():
+    '''
+    It connects the current blockchain node to other nodes present 
+    in the nodes.json file.
+    '''
     json = request.get_json()
     nodes = json.get('nodes')
     if nodes is None:
@@ -252,6 +290,10 @@ def connect_node():
 # Replacing the chain by the longest chain if needed
 @app.route('/replace_chain', methods = ['GET'])
 def replace_chain():
+    '''
+    This function replaces the current blockchain with the longest
+    chain among all nodes in the distributed system.
+    '''
     # share_keys()
     is_chain_replaced = blockchain.replace_chain()
     if is_chain_replaced:
@@ -264,6 +306,10 @@ def replace_chain():
 
 @app.route('/get_publickeys', methods = ['POST'])
 def get_public_keys():
+    '''
+    This function returns the public keys of a user
+    from the public_keys.json file
+    '''
     json_req = request.get_json()
     print(json_req, " in get_public_keys")
     username = json_req["username"]
@@ -279,25 +325,25 @@ def get_public_keys():
     
     return jsonify({"keys":""}), 200
 
-@app.route('/update_publickeys', methods = ['POST'])
-def update_publickeys():
-    json_req = request.get_json()
-    new_keys = json_req["publickeys"]
-    keys = {}
-    with open('publickeys.json') as f:
-        try:
-            keys = json.load(f)  
-        except:
-            pass
+# @app.route('/update_publickeys', methods = ['POST'])
+# def update_publickeys():
+#     json_req = request.get_json()
+#     new_keys = json_req["publickeys"]
+#     keys = {}
+#     with open('publickeys.json') as f:
+#         try:
+#             keys = json.load(f)  
+#         except:
+#             pass
 
-    for k in list(new_keys.keys()):
-        if k not in keys:
-            keys[k] = new_keys[k]
+#     for k in list(new_keys.keys()):
+#         if k not in keys:
+#             keys[k] = new_keys[k]
     
-    with open('publickeys.json','w') as f:
-        json.dump(keys, f)
+#     with open('publickeys.json','w') as f:
+#         json.dump(keys, f)
 
-    return jsonify({"keys":keys}), 200
+#     return jsonify({"keys":keys}), 200
 
 
 
