@@ -6,13 +6,12 @@ import requests
 from flask_cors import CORS
 from urllib.parse import urlparse
 from blockchain import Blockchain
-from login import verify_login
 from keygen import *
 import sys
 
 app = Flask(__name__)
 cors = CORS(app)
-
+TEMPLATES_AUTO_RELOAD = True
 blockchain = Blockchain()
 
 # Webpages Begin
@@ -123,31 +122,10 @@ def logout():
     '''
     print("logging out")
     global logged_in
-    print(logged_in)
     logged_in = logged_in - 1
-    print(logged_in)
     return render_template('login.html', error=None)
 # Webpages End
 
-# def share_keys():
-#     for node in blockchain.nodes:
-#         keys = {}
-#         with open('publickeys.json') as f:
-#             try:
-#                 keys = json.load(f)  
-#             except:
-#                 pass
-#         api_url = f'http://{node}/update_publickeys'
-#         payload = json.dumps({"publickeys": keys})
-#         headers = {
-#             'Content-Type': 'application/json'
-#         }
-#         try:
-#             response = requests.request("POST", api_url, headers=headers, data = payload)
-#             with open('publickeys.json','w') as f:
-#                 json.dump(response.json()["keys"], f)
-#         except:
-#             pass
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -171,7 +149,7 @@ def add_user():
 
     k = keygen(json_req["password"])
     keys[username] = {"A": k['A'], "B": k['B'], "p":k['p']}
-
+    print("User", username)
     with open(f'secret_keys/{username}.txt', 'w+') as f:
         f.write(json_req["password"])
 
@@ -260,9 +238,18 @@ def add_data():
     is added to the msg queue of blockchain.
     '''
     json = request.get_json()
-    if 's' in json:
+
+    if 'r' in json:
+        response = {'isCorrect': blockchain.add_data(param=json['r'], param_type='r')}
+
+    elif 's' in json:
         index = blockchain.add_data(param=json['s'], param_type='s')
+        if index == -99:
+            print("msg not added")
+        else:
+            print("msg added")
         response = {'message': f'This data will be added to Block {index}'}
+
     else:
         data_keys = ['sender','msg', 'h']
         if not all(key in json for key in data_keys):
@@ -271,6 +258,54 @@ def add_data():
         response = {"b": b}
 
     return jsonify(response), 200
+
+@app.route('/add_transaction', methods = ['POST'])
+def add_msg():
+    '''
+    This function uses Zero Knowledge Proof to verify the password and if verified successfully
+    '''
+    json_req = request.get_json()
+    username = json_req['username']
+    password = json_req['password']
+    msgText = json_req['msg']
+    url = BASE_URL + "/get_publickeys"
+    payload = json.dumps({"username": username})
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    response = requests.request("POST", url, headers=headers, data = payload)
+    keys = response.json()["keys"]
+    A = keys["A"]
+    B = keys["B"]
+    p = keys["p"]
+    hex_val = hashlib.sha1(password.encode()).hexdigest()[:8]
+    x = int("0x" + hex_val, 0)
+
+    correct = 0
+    for i in range(3):
+        r = random.randint(1, 100)
+        h = modexp_lr_k_ary(A, r, p)
+        url = BASE_URL + "/add_data"
+        payload = json.dumps({"h":h,"msg":msgText,"sender":username})
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        response = requests.request("POST", url, headers=headers, data = payload)
+        b = response.json()['b']
+        s = modexp_lr_k_ary(r + b*x, 1, p-1)
+        payload = json.dumps({"r":s})
+        response = requests.request("POST", url, headers=headers, data = payload)
+        if response.json()["isCorrect"] is True:
+            correct += 1
+        else:
+            break
+
+        if correct == 3:
+            payload = json.dumps({"s":s})
+            response = requests.request("POST", url, headers=headers, data = payload)
+            return jsonify({"Status":"Verified & Added"}), 200
+
+    return jsonify({"Status":"Verificaiton Failed & Not Added"}), 403
 
 
 # Part 3 - Decentralizing our Blockchain
@@ -330,27 +365,7 @@ def get_public_keys():
     
     return jsonify({"keys":""}), 200
 
-# @app.route('/update_publickeys', methods = ['POST'])
-# def update_publickeys():
-#     json_req = request.get_json()
-#     new_keys = json_req["publickeys"]
-#     keys = {}
-#     with open('publickeys.json') as f:
-#         try:
-#             keys = json.load(f)  
-#         except:
-#             pass
-
-#     for k in list(new_keys.keys()):
-#         if k not in keys:
-#             keys[k] = new_keys[k]
-    
-#     with open('publickeys.json','w') as f:
-#         json.dump(keys, f)
-
-#     return jsonify({"keys":keys}), 200
-
-
 
 # Running the app
 app.run(host = '0.0.0.0', port = port)
+

@@ -16,8 +16,7 @@
       <span><i class="fas fa-cog"></i></span>
     </div>
     <div>
-        <!-- TODO: if logout button pressed then call API to logout which redirects url to home -->
-        <input type="password" placeholder="password" id="key-box" value="{{passwd}}" />
+        <input type="password" placeholder="password" id="key-box" value="{{passwd}}" disabled/>
         <button type="button" id="logout" value="{{username}}" onclick="logout()">Let Me Out</button>
     </div>
   </header>
@@ -39,13 +38,17 @@
     </div>
 
     <!-- This is where user messages are displayed -->
-
+    
   </main>
 
-  <form class="msger-inputarea">
+  <div class="msg right-msg">
+    <div class="loader" id="loader"></div>
+  </div>
+
+  <div class="msger-inputarea">
     <input id="send_msg_field" type="text" class="msger-input" placeholder="Enter your message...">
-    <button type="submit" id="submit-btn" class="msger-send-btn">Send</button>
-  </form>
+    <button type="submit" id="submit-btn" class="msger-send-btn" onclick="submit_msg()">Send</button>
+  </div>
 </section>
 </body>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>

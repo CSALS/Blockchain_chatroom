@@ -21,70 +21,28 @@ var USERNAME = null
 // -----------------------------------------------
 
 // Function to submit message
-// submit_btn.addEventListener("click", event => {
-msgerForm.addEventListener("submit", event => {
-    event.preventDefault();
-
+function submit_msg() {
+    let loader = document.getElementById("loader");
+    loader.style.display = "block";
     const msgText = msgerInput.value;
     const passwd = passwd_box.value;
-    let x = parseInt("0x" + SHA1(passwd).substr(0,8));
-
     if (!msgText) return;
     document.getElementById("send_msg_field").value = ""; 
-    // TODO: compute h and send {sender, msg, h} to /add_data and b is returned in response
-    // use that to calculate s and send {s} to /add_data again
-    let r = getRandomInt(1, 100);
-    let A = 0;
-    let B = 0;
-    let p = 0;
-    console.log("sending add_data request")
-    api_url = ROOT_URL + "/get_publickeys";
+    console.log("sending add_msg request")
+    api_url = ROOT_URL + "/add_transaction";
     let settings = {
         "url": api_url,
         "method": "POST",
         "headers": {
           "Content-Type": "application/json"
         },
-        "data": JSON.stringify({"username": USERNAME})
+        "data": JSON.stringify({"msg": msgText, "username": USERNAME, "password": passwd})
     };
 
-    $.ajax(settings).done(function (response){
-        console.log("got response")
-        A = response["keys"]["A"];
-        B = response["keys"]["B"];
-        p = response["keys"]["p"];
-        console.log("printing json keys " + A, B, p);
-        let h = powerMod(A, r, p)
-        send_add_data(h, r, x, p, msgText)
-    });
-
-});
-
-function send_add_data(h, r, x, p, msgText){
-    api_url = ROOT_URL + "/add_data"
-    let settings = {
-        "url": api_url,
-        "method": "POST",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "data": JSON.stringify({"h":h,"msg":msgText,"sender":USERNAME}),
-    };
-
-    let b = 0
     $.ajax(settings).done(function (response) {
-        b = response['b']
-        let s = powerMod(r + b*x, 1, p-1)
-        // TODO: compute s
-        settings["data"] = JSON.stringify({"s":s})
-          
-        $.ajax(settings).done(function (response) {
-            updateChatBox();
-        });
+        updateChatBox();
     });
-
 }
-
 
 // -----------------------------------
 // Helper Functions To Update Chatroom messages
@@ -126,7 +84,7 @@ function addResponseToMessages(response) {
 }
 
 function updateChatBox() {
-    console.log(USERNAME)
+    console.log("Adding message")
     api_url = ROOT_URL + "/get_chain"
     let settings = {
         "url": api_url,
@@ -142,7 +100,6 @@ function updateChatBox() {
         console.log(messages)
         for(let i = prev_msgs_len; i < messages.length; ++i) {
             name = messages[i]['sender']
-            console.log(name)
             text = messages[i]['msg']
             time = messages[i]['time']
             if(name == USERNAME)
@@ -152,13 +109,17 @@ function updateChatBox() {
             appendMessage(name, text, time, side)
         }
     });
+    let loader = document.getElementById("loader");
+    loader.style.display = "none";
 }
 $(document).ready(function() {
     USERNAME = document.getElementById("logout").value
     updateChatBox();
 });
 
-setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
+// setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
+// setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
+// setInterval(function() {updateChain();}, TIME_UPDATECHAIN);
 
 // -------------------------------------------------------
 
@@ -176,7 +137,7 @@ function mineBlock() {
     });
 }
 
-setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
+
 
 // Helper functions to update blockchain
 
@@ -192,7 +153,7 @@ function updateChain() {
     });
 }
 
-setInterval(function() {updateChain();}, TIME_UPDATECHAIN);
+
 
 // Helper function to logout an user
 

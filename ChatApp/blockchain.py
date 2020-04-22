@@ -112,35 +112,45 @@ class Blockchain:
         sender: username of the message sender
         msg: content of the message
         param: h/s depending on param_type
-        param_type: h/s
+        param_type: h/s/r
 
         This function is used in multiple ways depending on param type
         when mining a block it returns -1 or -2
         1) when the user sends h, it returns a random bit b.
-        2) when the user sends s, it verifies the transaction
+        2) when the user sends r, it returns the result of verification of transaction only. 
+        This is used for the user to do ZKP multiple times before finally adding message.
+        3) when the user sends s, it verifies the transaction
         using public key of the user and the method 'verifyTransaction'.
         if the transaction is verified, it adds the transaction(msg) to data variable
         and returns the new index.
         '''
-        if msg=='mining_block':
-            if len(self.data)==0: return -1
+        if msg == 'mining_block':
+            if len(self.data) == 0: return -1
             else: return -2
-        if param_type=='h':
+
+        if param_type == 'h':
             self.storage['sender'] = sender
             self.storage['msg'] = msg
             self.storage['h'] = param
             self.storage['b'] = random.randint(0, 1)
             return self.storage['b']
-        elif param_type=='s':
+
+        elif param_type == 'r':
+            self.storage['s'] = param
+            keys = self.get_publickeys(self.storage['sender'])
+            print("verify", self.verifyTransaction(keys["A"], keys["B"], keys["p"]))
+            return self.verifyTransaction(keys["A"], keys["B"], keys["p"])
+
+        elif param_type == 's':
             self.storage['s'] = param
             keys = self.get_publickeys(self.storage['sender'])
             if self.verifyTransaction(keys["A"], keys["B"], keys["p"]):
                 self.data.append({'sender': self.storage['sender'],
                                     'time': str(datetime.datetime.now()),
-                                    # 'time': self.storage['time'],
                                     'msg': self.storage['msg']})
                 previous_block = self.get_previous_block()
                 return previous_block['index'] + 1
+
         return -99
     
     def add_node(self, address):
