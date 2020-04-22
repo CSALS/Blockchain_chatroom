@@ -109,7 +109,9 @@ def chatroom(username):
     '''
     global logged_in
     if request.method == 'GET' and logged_in != 0:
-        return render_template('chatroom.html', username=username)
+        with open(f'secret_keys/{username}.txt') as f:
+            password = f.readlines()[0]
+        return render_template('chatroom.html', username=username, passwd=password)
     else:
         return redirect('/')
 
@@ -169,6 +171,9 @@ def add_user():
 
     k = keygen(json_req["password"])
     keys[username] = {"A": k['A'], "B": k['B'], "p":k['p']}
+
+    with open(f'secret_keys/{username}.txt', 'w+') as f:
+        f.write(json_req["password"])
 
     with open('publickeys.json','w') as f:
         json.dump(keys, f)
