@@ -12,17 +12,19 @@ const passwd_box = document.getElementById("key-box");
 const ROOT_URL = "http://" + window.location.host
 
 const TIME_UPDATECHAT = 1000 //1sec
-const TIME_MINEBLOCK = 5000 //5sec
-const TIME_UPDATECHAIN = 500
+const TIME_MINEBLOCK = 15000 // 15sec
+const TIME_UPDATECHAIN = 30000 // 30sec
 
 var messages = []
 var USERNAME = null
 
+var message_begin_sent = false //helps in updating chatbox when other guys send message but keep loading if we sent a msg from this side
 // -----------------------------------------------
 
 // Function to submit message
 function submit_msg() {
-    let loader = document.getElementById("loader");
+    message_begin_sent = true
+    let loader = document.getElementById("rLoader");
     loader.style.display = "block";
     const msgText = msgerInput.value;
     const passwd = passwd_box.value;
@@ -41,6 +43,7 @@ function submit_msg() {
 
     $.ajax(settings).done(function (response) {
         updateChatBox();
+        message_begin_sent = false
     });
 }
 
@@ -84,6 +87,7 @@ function addResponseToMessages(response) {
 }
 
 function updateChatBox() {
+    console.log("user is ", USERNAME)
     console.log("Adding message")
     api_url = ROOT_URL + "/get_chain"
     let settings = {
@@ -108,24 +112,31 @@ function updateChatBox() {
                 side = "left"
             appendMessage(name, text, time, side)
         }
+        if(message_begin_sent != true) {
+            let loader = document.getElementById("rLoader");
+            loader.style.display = "none";
+        }
     });
-    let loader = document.getElementById("loader");
-    loader.style.display = "none";
 }
 $(document).ready(function() {
+    let loader = document.getElementById("lLoader");
+    loader.style.display = "block";
     USERNAME = document.getElementById("logout").value
     updateChatBox();
+    console.log("updated chat")
+    loader.style.display = "none";
+    setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
+    setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
+    setInterval(function() {updateChain();}, TIME_UPDATECHAIN);
 });
 
-// setInterval(function() {updateChatBox();}, TIME_UPDATECHAT);
-// setInterval(function() {mineBlock();}, TIME_MINEBLOCK);
-// setInterval(function() {updateChain();}, TIME_UPDATECHAIN);
 
 // -------------------------------------------------------
 
 // Helper functions to mine blocks
 
 function mineBlock() {
+    console.log("mining a block")
     let api_url = ROOT_URL + "/mine_block"
     let settings = {
         "url": api_url,
@@ -154,12 +165,10 @@ function updateChain() {
 }
 
 
-
 // Helper function to logout an user
 
 function logout1() {
     console.log("Calling /logout in the server to decrease # of logged_in users")
-    // mineBlock()
     let api_url = ROOT_URL + "/logout"
     let settings = {
         "url": api_url,
@@ -176,6 +185,7 @@ function logout2() {
     window.location.href = ROOT_URL;
 }
 function logout() {
+    mineBlock()
     logout1()
     setTimeout(function(){
         logout2()

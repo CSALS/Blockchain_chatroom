@@ -4,6 +4,7 @@ import json
 from urllib.parse import urlparse
 import requests
 import random
+import pickle
 
 class Blockchain:
 
@@ -30,6 +31,13 @@ class Blockchain:
             for node in json.load(f)['nodes']:
                 self.add_node(node)
         print("connected nodes: ", self.nodes)
+
+        try:
+            with open('database', 'rb') as db:
+                self.chain = pickle.load(db)
+        except EOFError:
+            pass
+        print(self.chain)
     
     def createBlock(self, nonce, previous_hash):
         '''
@@ -51,6 +59,9 @@ class Blockchain:
                  'data': self.data}
         self.data = []
         self.chain.append(block)
+        if nonce != 1 and previous_hash != '0':
+            with open('database', 'wb') as db:
+                pickle.dump(self.chain, db)
         return block
 
     def get_previous_block(self):
@@ -138,8 +149,9 @@ class Blockchain:
         elif param_type == 'r':
             self.storage['s'] = param
             keys = self.get_publickeys(self.storage['sender'])
-            print("verify", self.verifyTransaction(keys["A"], keys["B"], keys["p"]))
-            return self.verifyTransaction(keys["A"], keys["B"], keys["p"])
+            verify_res = self.verifyTransaction(keys["A"], keys["B"], keys["p"])
+            print("verify ", verify_res)
+            return verify_res
 
         elif param_type == 's':
             self.storage['s'] = param

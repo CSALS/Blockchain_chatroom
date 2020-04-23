@@ -11,7 +11,7 @@ import sys
 
 app = Flask(__name__)
 cors = CORS(app)
-TEMPLATES_AUTO_RELOAD = True
+
 blockchain = Blockchain()
 
 # Webpages Begin
@@ -184,8 +184,6 @@ def mine_block():
                     'previous_hash': block['previous_hash'],
                     'data': block['data']}
 
-        with open('database', 'wb') as file:
-            pickle.dump(blockchain.chain, file)
     return jsonify(response), 200
 
 # Getting the full Blockchain
@@ -262,7 +260,7 @@ def add_data():
 @app.route('/add_transaction', methods = ['POST'])
 def add_msg():
     '''
-    This function uses Zero Knowledge Proof to verify the password and if verified successfully
+    This function uses Zero Knowledge Proof to verify the password and return the result.
     '''
     json_req = request.get_json()
     username = json_req['username']
@@ -294,6 +292,7 @@ def add_msg():
         b = response.json()['b']
         s = modexp_lr_k_ary(r + b*x, 1, p-1)
         payload = json.dumps({"r":s})
+        print("b is ", b)
         response = requests.request("POST", url, headers=headers, data = payload)
         if response.json()["isCorrect"] is True:
             correct += 1
