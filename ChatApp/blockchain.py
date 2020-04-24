@@ -35,7 +35,7 @@ class Blockchain:
         try:
             with open('database', 'rb') as db:
                 self.chain = pickle.load(db)
-        except EOFError:
+        except:
             pass
         print(self.chain)
     

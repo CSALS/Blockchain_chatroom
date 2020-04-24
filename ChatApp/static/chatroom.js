@@ -12,8 +12,8 @@ const passwd_box = document.getElementById("key-box");
 const ROOT_URL = "http://" + window.location.host
 
 const TIME_UPDATECHAT = 1000 //1sec
-const TIME_MINEBLOCK = 15000 // 15sec
-const TIME_UPDATECHAIN = 30000 // 30sec
+const TIME_MINEBLOCK = 1100 // 1.1sec
+const TIME_UPDATECHAIN = 1200 // 1.2sec
 
 var messages = []
 var USERNAME = null
