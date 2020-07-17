@@ -1,6 +1,6 @@
 # Blockchain based chatroom application
 
-This repository contains the implementation of blockchain its usage in building a chatroom.
+This repository contains the implementation of blockchain and its usage in building a chatroom.
 
 python 3.x has been used in this project.
 
