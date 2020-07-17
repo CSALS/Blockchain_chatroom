@@ -32,7 +32,7 @@ username and secret key ( password ).
 
 -  A new user is created if the username is not present. Public keys are created using keygen.py and shared among all nodes using public_keys.json file.
 - Each time an old user logins, their identity is verified using discret log verification.
-- After successful verification, the chatroom appears. The user can send a message only when their secret key is entered in the text box besides the logout button.
+- After successful verification, the chatroom appears. The user can send a message only when their secret key is entered in the text box beside the logout button.
 
 
 ### chatroom on different nodes
